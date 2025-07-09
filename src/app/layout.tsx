@@ -1,11 +1,9 @@
 import "@/app/globals.css";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { QueryProvider } from "@/providers/QueryProvider";
+import { AxiosInitializer } from "@/components/AxiosInitializer";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-
-// Initialize axios configurations for backward compatibility
-import "@/lib/axios-setup";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -22,6 +20,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
+        <AxiosInitializer />
         <QueryProvider>
           <AuthProvider>{children}</AuthProvider>
         </QueryProvider>

@@ -1,5 +1,3 @@
-"use client";
-
 import { initializeAxiosClient } from "./axios-client";
 
 /**
@@ -11,11 +9,6 @@ export function initializeAxiosConfigurations() {
   initializeAxiosClient();
 
   console.log("Axios configuration initialized successfully");
-}
-
-// Initialize automatically when imported in a client component
-if (typeof window !== "undefined") {
-  initializeAxiosConfigurations();
 }
 
 export default initializeAxiosConfigurations;
