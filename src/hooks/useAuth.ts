@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { setCookie, deleteCookie } from "cookies-next";
 import {
   auth,
@@ -18,25 +17,10 @@ import {
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
-
-  // Function to handle token refresh
-  const refreshToken = async (user: User) => {
-    try {
-      const token = await user.getIdToken(true);
-      await persistToken(token);
-    } catch (error) {
-      console.error("Error refreshing token:", error);
-    }
-  };
 
   // Function to persist token in both cookie and localStorage
   const persistToken = async (token: string) => {
-    // Store in localStorage for client-side access
     localStorage.setItem("authToken", token);
-
-    // Store in cookie for server-side/middleware access
-    // Use HttpOnly false so middleware can read it
     setCookie("authToken", token, {
       maxAge: 60 * 60 * 24 * 5, // 5 days
       path: "/",
@@ -48,97 +32,96 @@ export function useAuth() {
   // Function to clear tokens on logout
   const clearTokens = () => {
     localStorage.removeItem("authToken");
+    localStorage.removeItem("workspaceId");
     deleteCookie("authToken");
   };
 
+  // Setup auth state listener
   useEffect(() => {
-    // Set up auth state listener
     const unsubscribe = onIdTokenChanged(auth, async (user) => {
       setLoading(true);
+      try {
+        if (user) {
+          const token = await user.getIdToken();
+          await persistToken(token);
+          setUser(user);
 
-      if (user) {
-        // User is signed in
-        setUser(user);
+          // Setup token refresh
+          const interval = setInterval(async () => {
+            if (auth.currentUser) {
+              const refreshedToken = await auth.currentUser.getIdToken(true);
+              await persistToken(refreshedToken);
+            }
+          }, TOKEN_REFRESH_INTERVAL);
 
-        // Get the token and persist it
-        const token = await user.getIdToken();
-        await persistToken(token);
-
-        // Set up token refresh
-        const refreshInterval = setInterval(() => {
-          if (auth.currentUser) {
-            refreshToken(auth.currentUser);
-          }
-        }, TOKEN_REFRESH_INTERVAL);
-
-        // Clear interval on cleanup
-        return () => clearInterval(refreshInterval);
-      } else {
-        // User is signed out
-        setUser(null);
-        clearTokens();
+          return () => clearInterval(interval);
+        } else {
+          setUser(null);
+          clearTokens();
+        }
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     });
 
-    // Cleanup subscription
     return () => unsubscribe();
-  }, [refreshToken]);
+  }, []);
 
-  // Sign in with email/password
-  const signIn = async (email: string, password: string) => {
+  // Handle authentication process
+  const handleAuthProcess = async (
+    authFn: () => Promise<User>,
+    successMessage?: string
+  ) => {
     try {
       setLoading(true);
-      await signInWithEmailAndPassword(auth, email, password);
-      router.push("/workspaces");
-      return { success: true };
-    } catch (error: unknown) {
+
+      // Execute the authentication function
+      const authUser = await authFn();
+
+      // Get and persist the token
+      const token = await authUser.getIdToken();
+      await persistToken(token);
+
+      // Update user state
+      setUser(authUser);
+
+      return { success: true, message: successMessage };
+    } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to sign in",
+        error: error instanceof Error ? error.message : "Authentication failed",
       };
     } finally {
       setLoading(false);
     }
+  };
+
+  // Sign in with email/password
+  const signIn = async (email: string, password: string) => {
+    return handleAuthProcess(async () => {
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      return result.user;
+    }, "Successfully signed in");
   };
 
   // Sign up with email/password
   const signUp = async (email: string, password: string) => {
-    try {
-      setLoading(true);
-      await createUserWithEmailAndPassword(auth, email, password);
-      router.push("/workspaces");
-      return { success: true };
-    } catch (error: unknown) {
-      return {
-        success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to create account",
-      };
-    } finally {
-      setLoading(false);
-    }
+    return handleAuthProcess(async () => {
+      const result = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      return result.user;
+    }, "Account created successfully");
   };
 
   // Sign in with Google
   const signInWithGoogle = async () => {
-    try {
-      setLoading(true);
-      await signInWithPopup(auth, googleProvider);
-      router.push("/workspaces");
-      return { success: true };
-    } catch (error: unknown) {
-      return {
-        success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to sign in with Google",
-      };
-    } finally {
-      setLoading(false);
-    }
+    return handleAuthProcess(async () => {
+      const result = await signInWithPopup(auth, googleProvider);
+      return result.user;
+    }, "Successfully signed in with Google");
   };
 
   // Sign out
@@ -146,9 +129,9 @@ export function useAuth() {
     try {
       await firebaseSignOut(auth);
       clearTokens();
-      router.push("/welcome");
+      setUser(null);
       return { success: true };
-    } catch (error: unknown) {
+    } catch (error) {
       return {
         success: false,
         error: error instanceof Error ? error.message : "Failed to sign out",

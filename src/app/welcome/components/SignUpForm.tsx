@@ -15,12 +15,7 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import {
-  auth,
-  createUserWithEmailAndPassword,
-  googleProvider,
-  signInWithPopup,
-} from "@/lib/firebase";
+import { useAuth } from "@/providers/AuthProvider";
 
 const formSchema = z
   .object({
@@ -41,6 +36,7 @@ export default function SignUpForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { signUp, signInWithGoogle } = useAuth();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -56,24 +52,36 @@ export default function SignUpForm() {
     setError(null);
 
     try {
-      await createUserWithEmailAndPassword(auth, values.email, values.password);
-      router.push("/");
-    } catch (error: any) {
-      setError(error.message || "Failed to sign up");
+      const result = await signUp(values.email, values.password);
+
+      if (result.success) {
+        router.push("/workspaces");
+      } else {
+        setError(result.error || "Failed to sign up");
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Failed to sign up");
     } finally {
       setIsLoading(false);
     }
   }
 
-  async function signUpWithGoogle() {
+  async function handleGoogleSignUp() {
     setIsLoading(true);
     setError(null);
 
     try {
-      await signInWithPopup(auth, googleProvider);
-      router.push("/");
-    } catch (error: any) {
-      setError(error.message || "Failed to sign up with Google");
+      const result = await signInWithGoogle();
+
+      if (result.success) {
+        router.push("/workspaces");
+      } else {
+        setError(result.error || "Failed to sign up with Google");
+      }
+    } catch (error) {
+      setError(
+        error instanceof Error ? error.message : "Failed to sign up with Google"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -145,7 +153,7 @@ export default function SignUpForm() {
       <Button
         variant="outline"
         type="button"
-        onClick={signUpWithGoogle}
+        onClick={handleGoogleSignUp}
         className="w-full"
         disabled={isLoading}
       >

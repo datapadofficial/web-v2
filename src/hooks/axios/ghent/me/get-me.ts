@@ -3,14 +3,19 @@ import {
   createGhentConfig,
 } from "../../common/create-axios-request";
 import { APIResponse } from "../../common/create-axios-request";
+import { User } from "@/models/user";
+import { Workspace } from "@/models/workspace";
+import { Source } from "@/models/source";
+import { Chat } from "@/models/chat";
+import { Report } from "@/models/report";
 
 interface UserData {
-  user: any;
-  workspaces: any[];
-  workspace: any | null;
-  sources: any[];
-  chats: any[];
-  reports: any[];
+  user: User;
+  workspaces: Workspace[];
+  workspace: Workspace | null;
+  sources: Source[];
+  chats: Chat[];
+  reports: Report[];
 }
 
 /**

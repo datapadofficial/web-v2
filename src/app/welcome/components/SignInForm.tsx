@@ -15,12 +15,7 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import {
-  auth,
-  signInWithEmailAndPassword,
-  googleProvider,
-  signInWithPopup,
-} from "@/lib/firebase";
+import { useAuth } from "@/providers/AuthProvider";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -33,6 +28,7 @@ export default function SignInForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { signIn, signInWithGoogle } = useAuth();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -47,24 +43,36 @@ export default function SignInForm() {
     setError(null);
 
     try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
-      router.push("/");
-    } catch (error: any) {
-      setError(error.message || "Failed to sign in");
+      const result = await signIn(values.email, values.password);
+
+      if (result.success) {
+        router.push("/workspaces");
+      } else {
+        setError(result.error || "Failed to sign in");
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Failed to sign in");
     } finally {
       setIsLoading(false);
     }
   }
 
-  async function signInWithGoogle() {
+  async function handleGoogleSignIn() {
     setIsLoading(true);
     setError(null);
 
     try {
-      await signInWithPopup(auth, googleProvider);
-      router.push("/");
-    } catch (error: any) {
-      setError(error.message || "Failed to sign in with Google");
+      const result = await signInWithGoogle();
+
+      if (result.success) {
+        router.push("/workspaces");
+      } else {
+        setError(result.error || "Failed to sign in with Google");
+      }
+    } catch (error) {
+      setError(
+        error instanceof Error ? error.message : "Failed to sign in with Google"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -123,7 +131,7 @@ export default function SignInForm() {
       <Button
         variant="outline"
         type="button"
-        onClick={signInWithGoogle}
+        onClick={handleGoogleSignIn}
         className="w-full"
         disabled={isLoading}
       >

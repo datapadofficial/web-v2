@@ -1,30 +1,36 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "./AuthProvider";
-import { getMeRequest, type UserData } from "@/hooks/axios/ghent/me/get-me";
-
-export interface Workspace {
-  _id: string;
-  name: string;
-  admins: string[];
-  members: string[];
-  features?: {
-    ai?: boolean;
-  };
-}
+import { getMeRequest, UserData } from "@/hooks/axios/ghent/me/get-me";
+import { Workspace } from "@/models/workspace";
+import { Source } from "@/models/source";
+import { Chat } from "@/models/chat";
+import { Report } from "@/models/report";
 
 interface WorkspaceContextType {
+  // Core workspace data
   currentWorkspace: Workspace | null;
   workspaces: Workspace[];
-  sources: any[];
-  chats: any[];
-  reports: any[];
+  sources: Source[];
+  chats: Chat[];
+  reports: Report[];
+
+  // Loading and error states
   isLoading: boolean;
   error: string | null;
-  switchWorkspace: (workspaceId: string) => Promise<void>;
-  refreshWorkspaces: () => Promise<void>;
+
+  // Actions
+  refreshWorkspaceData: () => Promise<void>;
+  switchWorkspace: (workspaceId: string) => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType>({
@@ -35,8 +41,8 @@ const WorkspaceContext = createContext<WorkspaceContextType>({
   reports: [],
   isLoading: false,
   error: null,
-  switchWorkspace: async () => {},
-  refreshWorkspaces: async () => {},
+  refreshWorkspaceData: async () => {},
+  switchWorkspace: () => {},
 });
 
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
@@ -44,171 +50,183 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(
     null
   );
-  const [sources, setSources] = useState<any[]>([]);
-  const [chats, setChats] = useState<any[]>([]);
-  const [reports, setReports] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [sources, setSources] = useState<Source[]>([]);
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
-  // Extract workspaceId from URL if in /workspaces/[workspaceId] format
-  const getWorkspaceIdFromUrl = () => {
-    if (!pathname) return null;
+  // Cache to prevent duplicate API calls
+  const loadingWorkspaceRef = useRef<string | null>(null);
 
+  // Extract workspaceId from current URL
+  const getWorkspaceIdFromUrl = useCallback(() => {
+    if (!pathname) return null;
     const match = pathname.match(/\/workspaces\/([^\/]+)/);
     return match ? match[1] : null;
-  };
+  }, [pathname]);
 
-  // Get the last used workspace ID from localStorage
-  const getLastWorkspaceId = () => {
+  // Persist workspace ID to localStorage
+  const persistWorkspaceId = useCallback((workspaceId: string) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("workspaceId", workspaceId);
+    }
+  }, []);
+
+  // Get last workspace ID from localStorage
+  const getLastWorkspaceId = useCallback(() => {
     if (typeof window === "undefined") return null;
     return localStorage.getItem("workspaceId");
-  };
+  }, []);
 
-  // Fetch user data and workspaces using Ghent API
-  const fetchUserData = async (workspaceId?: string) => {
-    if (!user) return null;
+  // Load workspace data from API
+  const loadWorkspaceData = useCallback(
+    async (workspaceId?: string) => {
+      if (!user || authLoading) return;
 
-    try {
-      setIsLoading(true);
-      setError(null);
+      // Prevent duplicate API calls
+      if (loadingWorkspaceRef.current === workspaceId) return;
 
-      const response = await getMeRequest(workspaceId);
-      const userData = response.data;
-
-      // Update state with the fetched data
-      setWorkspaces(userData.workspaces || []);
-      setSources(userData.sources || []);
-      setChats(userData.chats || []);
-      setReports(userData.reports || []);
-
-      if (userData.workspace) {
-        setCurrentWorkspace(userData.workspace);
-        localStorage.setItem("workspaceId", userData.workspace._id);
+      // If we already have the correct workspace loaded, don't make another API call
+      if (
+        workspaceId &&
+        currentWorkspace &&
+        currentWorkspace._id === workspaceId
+      ) {
+        return;
       }
 
-      return userData;
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "An unknown error occurred"
-      );
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      try {
+        setIsLoading(true);
+        setError(null);
+        loadingWorkspaceRef.current = workspaceId || null;
 
-  // Handle workspace switching
-  const switchWorkspace = async (workspaceId: string) => {
-    if (!workspaceId) return;
+        const response = await getMeRequest(workspaceId);
+        const data: UserData = response.data;
 
-    try {
-      setIsLoading(true);
-      setError(null);
+        // Update all workspace-related state
+        setWorkspaces(data.workspaces || []);
+        setSources(data.sources || []);
+        setChats(data.chats || []);
+        setReports(data.reports || []);
 
-      // Store in localStorage for persistence
-      localStorage.setItem("workspaceId", workspaceId);
+        // Set current workspace and persist ID
+        if (data.workspace) {
+          setCurrentWorkspace(data.workspace);
+          persistWorkspaceId(data.workspace._id);
+        } else if (workspaceId) {
+          // If we requested a specific workspace but didn't get it, check if it exists in the list
+          const foundWorkspace = data.workspaces.find(
+            (w) => w._id === workspaceId
+          );
+          if (foundWorkspace) {
+            setCurrentWorkspace(foundWorkspace);
+            persistWorkspaceId(foundWorkspace._id);
+          } else {
+            // Workspace doesn't exist, redirect to workspace list
+            router.push("/workspaces");
+          }
+        }
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : "Failed to load workspace data";
+        setError(errorMessage);
+        console.error("Error loading workspace data:", err);
+      } finally {
+        setIsLoading(false);
+        loadingWorkspaceRef.current = null;
+      }
+    },
+    [user, authLoading, persistWorkspaceId, currentWorkspace, router]
+  );
 
-      // Fetch updated data for the new workspace
-      await fetchUserData(workspaceId);
+  // Refresh current workspace data
+  const refreshWorkspaceData = useCallback(async () => {
+    const urlWorkspaceId = getWorkspaceIdFromUrl();
+    const targetWorkspaceId = urlWorkspaceId || getLastWorkspaceId();
+    await loadWorkspaceData(targetWorkspaceId || undefined);
+  }, [getWorkspaceIdFromUrl, getLastWorkspaceId, loadWorkspaceData]);
 
-      // Navigate to the workspace
+  // Switch workspace programmatically
+  const switchWorkspace = useCallback(
+    (workspaceId: string) => {
       router.push(`/workspaces/${workspaceId}`);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to switch workspace"
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      // The URL change will trigger the useEffect below to load the workspace data
+    },
+    [router]
+  );
 
-  // Refresh workspace data
-  const refreshWorkspaces = async () => {
-    const currentId = currentWorkspace?._id || getLastWorkspaceId();
-    await fetchUserData(currentId || undefined);
-  };
-
-  // Handle auth status and routing - centralized pattern
+  // 🎯 MAIN LOGIC: React to URL changes and user authentication
   useEffect(() => {
-    // Wait until auth state is determined
     if (authLoading) return;
 
-    // User is not authenticated
+    // User is not authenticated - clear workspace data
     if (!user) {
-      // Only redirect to welcome if not already there
-      if (!pathname?.includes("/welcome")) {
-        router.push("/welcome");
-      }
-      setIsLoading(false);
+      setWorkspaces([]);
+      setCurrentWorkspace(null);
+      setSources([]);
+      setChats([]);
+      setReports([]);
+      setError(null);
       return;
     }
 
-    // User is authenticated
-    const initializeWorkspace = async () => {
-      // First check if we have a workspace ID in the URL
-      const urlWorkspaceId = getWorkspaceIdFromUrl();
-
-      // Then check localStorage for last used workspace
-      const localStorageWorkspaceId = getLastWorkspaceId();
-
-      // Determine which workspace to use (URL > localStorage)
-      const workspaceToUse = urlWorkspaceId || localStorageWorkspaceId;
-
-      // Fetch data with the workspace ID if available
-      const userData = await fetchUserData(workspaceToUse || undefined);
-
-      // If we don't have a workspace but have workspaces, use the first one
-      if (!currentWorkspace && workspaces.length > 0) {
-        const firstWorkspaceId = workspaces[0]._id;
-
-        // If we're not on the workspace page already, redirect to it
-        if (!urlWorkspaceId && !pathname?.includes("/welcome")) {
-          router.push(`/workspaces/${firstWorkspaceId}`);
-        }
-      } else if (!workspaces.length && !pathname?.includes("/welcome")) {
-        // No workspaces available, go to welcome/onboarding
-        router.push("/welcome");
-      }
-    };
-
-    initializeWorkspace();
-  }, [user, authLoading, pathname]);
-
-  // Update current workspace when URL changes
-  useEffect(() => {
-    if (authLoading || !user) return;
-
+    // User is authenticated - determine which workspace to load
     const urlWorkspaceId = getWorkspaceIdFromUrl();
-    if (
-      urlWorkspaceId &&
-      (!currentWorkspace || urlWorkspaceId !== currentWorkspace._id)
-    ) {
-      // URL has a different workspace ID than what we currently have loaded
-      switchWorkspace(urlWorkspaceId);
+
+    if (urlWorkspaceId) {
+      // We're on a specific workspace page - load that workspace
+      loadWorkspaceData(urlWorkspaceId);
+    } else {
+      // We're on a general page - load user's default workspace
+      const lastWorkspaceId = getLastWorkspaceId();
+      loadWorkspaceData(lastWorkspaceId || undefined);
     }
-  }, [pathname, user, authLoading]);
+  }, [
+    user,
+    authLoading,
+    pathname,
+    getWorkspaceIdFromUrl,
+    getLastWorkspaceId,
+    loadWorkspaceData,
+  ]);
+
+  // Clear workspace data when user logs out
+  useEffect(() => {
+    if (!user && !authLoading) {
+      setWorkspaces([]);
+      setCurrentWorkspace(null);
+      setSources([]);
+      setChats([]);
+      setReports([]);
+      setError(null);
+    }
+  }, [user, authLoading]);
+
+  const value: WorkspaceContextType = {
+    currentWorkspace,
+    workspaces,
+    sources,
+    chats,
+    reports,
+    isLoading,
+    error,
+    refreshWorkspaceData,
+    switchWorkspace,
+  };
 
   return (
-    <WorkspaceContext.Provider
-      value={{
-        currentWorkspace,
-        workspaces,
-        sources,
-        chats,
-        reports,
-        isLoading,
-        error,
-        switchWorkspace,
-        refreshWorkspaces,
-      }}
-    >
+    <WorkspaceContext.Provider value={value}>
       {children}
     </WorkspaceContext.Provider>
   );
 }
 
 export const useWorkspace = () => useContext(WorkspaceContext);
+
+// Re-export the Workspace interface for convenience
+export type { Workspace };
