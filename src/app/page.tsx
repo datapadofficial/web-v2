@@ -1,13 +1,17 @@
 "use client";
 
 import { useAuth } from "@/providers/AuthProvider";
-import { useWorkspace } from "@/providers/WorkspaceProvider";
+import { useMeWithFallback } from "@/features/workspaces/useWorkspaces";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 export default function Home() {
   const { user, loading: authLoading } = useAuth();
-  const { workspaces, isLoading: workspaceLoading } = useWorkspace();
+  const {
+    data: meData,
+    isLoading: meLoading,
+    error: meError,
+  } = useMeWithFallback();
   const router = useRouter();
 
   useEffect(() => {
@@ -17,20 +21,26 @@ export default function Home() {
     // If user is not authenticated, middleware will handle redirect to /welcome
     if (!user) return;
 
-    // If user is authenticated but workspaces are still loading, wait
-    if (workspaceLoading) return;
+    // If user is authenticated but me data is still loading, wait
+    if (meLoading) return;
+
+    // If there's an error loading user data, redirect to welcome
+    if (meError) {
+      router.push("/welcome");
+      return;
+    }
 
     // If user has workspaces, redirect to the workspace list
-    if (workspaces.length > 0) {
+    if (meData?.workspaces && meData.workspaces.length > 0) {
       router.push("/workspaces");
     } else {
       // If user has no workspaces, redirect to welcome for onboarding
       router.push("/welcome");
     }
-  }, [user, authLoading, workspaces, workspaceLoading, router]);
+  }, [user, authLoading, meData, meLoading, meError, router]);
 
   // Show loading state
-  if (authLoading || (user && workspaceLoading)) {
+  if (authLoading || (user && meLoading)) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50">
         <div className="p-8 rounded-lg bg-white shadow-md">

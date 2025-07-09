@@ -1,6 +1,6 @@
 "use client";
 
-import { initializeAxiosClient } from "../hooks/axios/common/axios-client";
+import { initializeAxiosClient } from "./axios-client";
 
 /**
  * Initialize axios configuration for the application

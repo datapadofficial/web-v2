@@ -1,18 +1,23 @@
 "use client";
 
 import { useAuth } from "@/providers/AuthProvider";
-import { useWorkspace, Workspace } from "@/providers/WorkspaceProvider";
-import { useRouter } from "next/navigation";
+import {
+  useMeWithFallback,
+  useWorkspaces,
+  useWorkspaceNavigation,
+} from "@/features/workspaces/useWorkspaces";
+import { Workspace } from "@/types/workspace";
 
 export default function WorkspacesPage() {
   const { user, loading: authLoading, signOut } = useAuth();
   const {
-    workspaces,
-    isLoading: workspaceLoading,
-    error,
-    switchWorkspace,
-  } = useWorkspace();
-  const router = useRouter();
+    data: meData,
+    isLoading: meLoading,
+    error: meError,
+  } = useMeWithFallback();
+
+  const workspaces = useWorkspaces();
+  const { switchWorkspace } = useWorkspaceNavigation();
 
   // Handle workspace selection
   const handleWorkspaceSelect = (workspace: Workspace) => {
@@ -22,11 +27,11 @@ export default function WorkspacesPage() {
   // Handle sign out
   const handleSignOut = async () => {
     await signOut();
-    router.push("/welcome");
+    // Navigation will be handled by the auth state change
   };
 
   // Show loading state
-  if (authLoading || workspaceLoading) {
+  if (authLoading || meLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="p-8 rounded-lg bg-white shadow-md">
@@ -40,14 +45,14 @@ export default function WorkspacesPage() {
   }
 
   // Show error state
-  if (error) {
+  if (meError) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="p-8 rounded-lg bg-white shadow-md">
           <div className="text-2xl font-bold mb-4 text-center text-red-600">
             Error loading workspaces
           </div>
-          <div className="text-gray-600 text-center">{error}</div>
+          <div className="text-gray-600 text-center">{meError.message}</div>
         </div>
       </div>
     );
@@ -87,7 +92,12 @@ export default function WorkspacesPage() {
     <div className="min-h-screen p-6 bg-gray-50">
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Your Workspaces</h1>
+          <div>
+            <h1 className="text-3xl font-bold">Your Workspaces</h1>
+            <p className="text-sm text-gray-500">
+              Welcome back, {meData?.user?.display_name || meData?.user?.email}
+            </p>
+          </div>
           <button
             onClick={handleSignOut}
             className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
@@ -105,8 +115,8 @@ export default function WorkspacesPage() {
             >
               <h2 className="text-xl font-semibold mb-2">{workspace.name}</h2>
               <p className="text-gray-600 mb-4">
-                {workspace.admins.length} admin
-                {workspace.admins.length !== 1 ? "s" : ""}
+                {workspace.admins?.length || 0} admin
+                {(workspace.admins?.length || 0) !== 1 ? "s" : ""}
               </p>
               <div className="text-blue-500 hover:text-blue-700 font-medium">
                 Open Workspace →

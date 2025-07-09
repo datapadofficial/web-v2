@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -6,8 +5,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import SignInForm from "@/app/welcome/components/SignInForm";
-import SignUpForm from "@/app/welcome/components/SignUpForm";
+import SignInForm from "@/features/auth/components/SignInForm";
+import SignUpForm from "@/features/auth/components/SignUpForm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function WelcomePage() {

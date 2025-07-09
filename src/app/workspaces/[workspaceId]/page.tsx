@@ -1,26 +1,37 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useWorkspace } from "@/providers/WorkspaceProvider";
 import { useAuth } from "@/providers/AuthProvider";
-import { useReports } from "@/hooks/useReports";
-import { useSources } from "@/hooks/useSources";
-import { useChats } from "@/hooks/useChats";
+import {
+  useMe,
+  useCurrentWorkspace,
+  useInitialResourceData,
+} from "@/features/workspaces/useWorkspaces";
+import { useReports } from "@/features/reports/useReports";
+import { useSources } from "@/features/sources/useSources";
+import { useChats } from "@/features/chats/useChats";
 
 export default function WorkspacePage() {
   const { workspaceId } = useParams();
-  const { user, loading: authLoading, signOut } = useAuth();
-  const {
-    currentWorkspace,
-    sources: initialSources,
-    chats: initialChats,
-    reports: initialReports,
-    isLoading: workspaceLoading,
-    error,
-  } = useWorkspace();
+  const { signOut } = useAuth();
   const router = useRouter();
 
-  // React Query hooks (read-only) - use initial data from get-me
+  // 🎯 Single source of truth - React Query manages everything
+  const {
+    data: meData,
+    isLoading: meLoading,
+    error: meError,
+  } = useMe(workspaceId as string);
+
+  // Convenience hooks (these use the same query under the hood)
+  const currentWorkspace = useCurrentWorkspace(workspaceId as string);
+  const {
+    reports: initialReports,
+    sources: initialSources,
+    chats: initialChats,
+  } = useInitialResourceData(workspaceId as string);
+
+  // React Query hooks for resources (using initial data from get-me)
   const {
     data: reports = [],
     isLoading: reportsLoading,
@@ -39,19 +50,19 @@ export default function WorkspacePage() {
     error: chatsError,
   } = useChats(currentWorkspace?._id || "", initialChats);
 
-  // Handle navigation back to workspaces
-  const handleBackToWorkspaces = () => {
-    router.push("/workspaces");
-  };
-
   // Handle sign out
   const handleSignOut = async () => {
     await signOut();
     router.push("/welcome");
   };
 
+  // Handle navigation
+  const handleBackToWorkspaces = () => {
+    router.push("/workspaces");
+  };
+
   // Show loading state
-  if (authLoading || workspaceLoading) {
+  if (meLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="p-8 rounded-lg bg-white shadow-md">
@@ -65,33 +76,22 @@ export default function WorkspacePage() {
   }
 
   // Show error state
-  if (error) {
+  if (meError) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="p-8 rounded-lg bg-white shadow-md">
           <div className="text-2xl font-bold mb-4 text-center text-red-600">
             Error loading workspace
           </div>
-          <div className="text-gray-600 text-center mb-4">{error}</div>
+          <div className="text-gray-600 text-center mb-4">
+            {meError.message}
+          </div>
           <button
             onClick={handleBackToWorkspaces}
             className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
           >
             Back to Workspaces
           </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Show login prompt (middleware should handle this, but just in case)
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="p-8 rounded-lg bg-white shadow-md">
-          <div className="text-2xl font-bold text-center">
-            Please log in to access your workspace
-          </div>
         </div>
       </div>
     );
@@ -129,6 +129,9 @@ export default function WorkspacePage() {
             <div>
               <h1 className="text-3xl font-bold">{currentWorkspace.name}</h1>
               <p className="text-gray-600">Workspace ID: {workspaceId}</p>
+              <p className="text-sm text-gray-500">
+                User: {meData?.user?.display_name || meData?.user?.email}
+              </p>
             </div>
             <div className="flex gap-2">
               <button
@@ -161,33 +164,10 @@ export default function WorkspacePage() {
                 <p className="text-gray-600 mb-4">
                   {reports.length} report{reports.length !== 1 ? "s" : ""}
                 </p>
-
                 <div className="text-sm text-gray-500">
                   {reports.length > 0
                     ? "Manage your reports in the reports section."
                     : "No reports yet. Create your first report!"}
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Chats Section */}
-          <div className="p-6 bg-white rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold mb-4">Chats</h2>
-
-            {chatsLoading ? (
-              <div className="text-gray-500">Loading chats...</div>
-            ) : chatsError ? (
-              <div className="text-red-500">Error loading chats</div>
-            ) : (
-              <>
-                <p className="text-gray-600 mb-4">
-                  {chats.length} chat{chats.length !== 1 ? "s" : ""}
-                </p>
-                <div className="text-sm text-gray-500">
-                  {chats.length > 0
-                    ? "Manage your chats in the chats section."
-                    : "No chats yet. Start your first conversation!"}
                 </div>
               </>
             )}
@@ -210,6 +190,28 @@ export default function WorkspacePage() {
                   {sources.length > 0
                     ? "Manage your sources in the sources section."
                     : "No sources yet. Connect your first data source!"}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Chats Section */}
+          <div className="p-6 bg-white rounded-lg shadow-md">
+            <h2 className="text-xl font-semibold mb-4">Chats</h2>
+
+            {chatsLoading ? (
+              <div className="text-gray-500">Loading chats...</div>
+            ) : chatsError ? (
+              <div className="text-red-500">Error loading chats</div>
+            ) : (
+              <>
+                <p className="text-gray-600 mb-4">
+                  {chats.length} chat{chats.length !== 1 ? "s" : ""}
+                </p>
+                <div className="text-sm text-gray-500">
+                  {chats.length > 0
+                    ? "Manage your chats in the chats section."
+                    : "No chats yet. Start your first conversation!"}
                 </div>
               </>
             )}
