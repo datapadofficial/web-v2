@@ -3,19 +3,41 @@
 import { useParams, useRouter } from "next/navigation";
 import { useWorkspace } from "@/providers/WorkspaceProvider";
 import { useAuth } from "@/providers/AuthProvider";
+import { useReports } from "@/hooks/useReports";
+import { useSources } from "@/hooks/useSources";
+import { useChats } from "@/hooks/useChats";
 
 export default function WorkspacePage() {
   const { workspaceId } = useParams();
   const { user, loading: authLoading, signOut } = useAuth();
   const {
     currentWorkspace,
-    sources,
-    chats,
-    reports,
+    sources: initialSources,
+    chats: initialChats,
+    reports: initialReports,
     isLoading: workspaceLoading,
     error,
   } = useWorkspace();
   const router = useRouter();
+
+  // React Query hooks (read-only) - use initial data from get-me
+  const {
+    data: reports = [],
+    isLoading: reportsLoading,
+    error: reportsError,
+  } = useReports(currentWorkspace?._id || "", initialReports);
+
+  const {
+    data: sources = [],
+    isLoading: sourcesLoading,
+    error: sourcesError,
+  } = useSources(currentWorkspace?._id || "", initialSources);
+
+  const {
+    data: chats = [],
+    isLoading: chatsLoading,
+    error: chatsError,
+  } = useChats(currentWorkspace?._id || "", initialChats);
 
   // Handle navigation back to workspaces
   const handleBackToWorkspaces = () => {
@@ -126,40 +148,71 @@ export default function WorkspacePage() {
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Reports Section */}
           <div className="p-6 bg-white rounded-lg shadow-md">
             <h2 className="text-xl font-semibold mb-4">Reports</h2>
-            <p className="text-gray-600 mb-2">
-              {reports.length} report{reports.length !== 1 ? "s" : ""}
-            </p>
-            <div className="text-sm text-gray-500">
-              {reports.length > 0
-                ? "Your reports will appear here."
-                : "No reports yet."}
-            </div>
+
+            {reportsLoading ? (
+              <div className="text-gray-500">Loading reports...</div>
+            ) : reportsError ? (
+              <div className="text-red-500">Error loading reports</div>
+            ) : (
+              <>
+                <p className="text-gray-600 mb-4">
+                  {reports.length} report{reports.length !== 1 ? "s" : ""}
+                </p>
+
+                <div className="text-sm text-gray-500">
+                  {reports.length > 0
+                    ? "Manage your reports in the reports section."
+                    : "No reports yet. Create your first report!"}
+                </div>
+              </>
+            )}
           </div>
 
+          {/* Chats Section */}
           <div className="p-6 bg-white rounded-lg shadow-md">
             <h2 className="text-xl font-semibold mb-4">Chats</h2>
-            <p className="text-gray-600 mb-2">
-              {chats.length} chat{chats.length !== 1 ? "s" : ""}
-            </p>
-            <div className="text-sm text-gray-500">
-              {chats.length > 0
-                ? "Your chats will appear here."
-                : "No chats yet."}
-            </div>
+
+            {chatsLoading ? (
+              <div className="text-gray-500">Loading chats...</div>
+            ) : chatsError ? (
+              <div className="text-red-500">Error loading chats</div>
+            ) : (
+              <>
+                <p className="text-gray-600 mb-4">
+                  {chats.length} chat{chats.length !== 1 ? "s" : ""}
+                </p>
+                <div className="text-sm text-gray-500">
+                  {chats.length > 0
+                    ? "Manage your chats in the chats section."
+                    : "No chats yet. Start your first conversation!"}
+                </div>
+              </>
+            )}
           </div>
 
+          {/* Sources Section */}
           <div className="p-6 bg-white rounded-lg shadow-md">
             <h2 className="text-xl font-semibold mb-4">Sources</h2>
-            <p className="text-gray-600 mb-2">
-              {sources.length} source{sources.length !== 1 ? "s" : ""}
-            </p>
-            <div className="text-sm text-gray-500">
-              {sources.length > 0
-                ? "Your sources will appear here."
-                : "No sources yet."}
-            </div>
+
+            {sourcesLoading ? (
+              <div className="text-gray-500">Loading sources...</div>
+            ) : sourcesError ? (
+              <div className="text-red-500">Error loading sources</div>
+            ) : (
+              <>
+                <p className="text-gray-600 mb-4">
+                  {sources.length} source{sources.length !== 1 ? "s" : ""}
+                </p>
+                <div className="text-sm text-gray-500">
+                  {sources.length > 0
+                    ? "Manage your sources in the sources section."
+                    : "No sources yet. Connect your first data source!"}
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

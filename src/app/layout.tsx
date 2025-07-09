@@ -1,6 +1,7 @@
 import "@/app/globals.css";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { WorkspaceProvider } from "@/providers/WorkspaceProvider";
+import { QueryProvider } from "@/providers/QueryProvider";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 
@@ -22,9 +23,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <AuthProvider>
-          <WorkspaceProvider>{children}</WorkspaceProvider>
-        </AuthProvider>
+        <QueryProvider>
+          <AuthProvider>
+            <WorkspaceProvider>{children}</WorkspaceProvider>
+          </AuthProvider>
+        </QueryProvider>
       </body>
     </html>
   );

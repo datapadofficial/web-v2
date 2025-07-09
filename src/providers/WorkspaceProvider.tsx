@@ -8,7 +8,7 @@ import React, {
   useCallback,
   useRef,
 } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "./AuthProvider";
 import { getMeRequest, UserData } from "@/hooks/axios/ghent/me/get-me";
 import { Workspace } from "@/models/workspace";
@@ -22,7 +22,7 @@ interface WorkspaceContextType {
   workspaces: Workspace[];
   sources: Source[];
   chats: Chat[];
-  reports: Report[];
+  reports: Report[]; // Initial data for React Query
 
   // Loading and error states
   isLoading: boolean;
@@ -46,6 +46,7 @@ const WorkspaceContext = createContext<WorkspaceContextType>({
 });
 
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
+  const { user, loading: authLoading } = useAuth();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(
     null
@@ -55,10 +56,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [reports, setReports] = useState<Report[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   // Cache to prevent duplicate API calls
   const loadingWorkspaceRef = useRef<string | null>(null);
@@ -69,13 +68,6 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     currentWorkspaceRef.current = currentWorkspace;
   }, [currentWorkspace]);
-
-  // Extract workspaceId from current URL
-  const getWorkspaceIdFromUrl = useCallback(() => {
-    if (!pathname) return null;
-    const match = pathname.match(/\/workspaces\/([^\/]+)/);
-    return match ? match[1] : null;
-  }, [pathname]);
 
   // Persist workspace ID to localStorage
   const persistWorkspaceId = useCallback((workspaceId: string) => {
@@ -158,10 +150,10 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   // Refresh current workspace data
   const refreshWorkspaceData = useCallback(async () => {
-    const urlWorkspaceId = getWorkspaceIdFromUrl();
-    const targetWorkspaceId = urlWorkspaceId || getLastWorkspaceId();
+    const targetWorkspaceId =
+      searchParams.get("workspaceId") || getLastWorkspaceId();
     await loadWorkspaceData(targetWorkspaceId || undefined);
-  }, [getWorkspaceIdFromUrl, getLastWorkspaceId, loadWorkspaceData]);
+  }, [getLastWorkspaceId, loadWorkspaceData, searchParams]);
 
   // Switch workspace programmatically
   const switchWorkspace = useCallback(
@@ -188,7 +180,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     }
 
     // User is authenticated - determine which workspace to load
-    const urlWorkspaceId = getWorkspaceIdFromUrl();
+    const urlWorkspaceId = searchParams.get("workspaceId");
 
     if (urlWorkspaceId) {
       // We're on a specific workspace page - load that workspace
@@ -198,14 +190,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       const lastWorkspaceId = getLastWorkspaceId();
       loadWorkspaceData(lastWorkspaceId || undefined);
     }
-  }, [
-    user,
-    authLoading,
-    pathname,
-    getWorkspaceIdFromUrl,
-    getLastWorkspaceId,
-    loadWorkspaceData,
-  ]);
+  }, [user, authLoading, searchParams, getLastWorkspaceId, loadWorkspaceData]);
 
   // Clear workspace data when user logs out
   useEffect(() => {
