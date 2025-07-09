@@ -22,9 +22,6 @@ interface UserData {
  * Get the current user data from Ghent including workspaces, sources, chats and reports
  */
 const getMeRequest = (workspaceId?: string): Promise<APIResponse<UserData>> => {
-  console.log(`Creating getMeRequest with workspaceId: ${workspaceId}`);
-  console.log(`Ghent BASE URL: ${process.env.NEXT_PUBLIC_GHENT_BASE_URL}`);
-
   const request = createAxiosRequest<UserData>({
     method: "GET",
     endpoint: "/workspaces/get-me",

@@ -62,6 +62,13 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   // Cache to prevent duplicate API calls
   const loadingWorkspaceRef = useRef<string | null>(null);
+  // Use ref to access current workspace without causing re-renders
+  const currentWorkspaceRef = useRef<Workspace | null>(null);
+
+  // Update ref whenever currentWorkspace changes
+  useEffect(() => {
+    currentWorkspaceRef.current = currentWorkspace;
+  }, [currentWorkspace]);
 
   // Extract workspaceId from current URL
   const getWorkspaceIdFromUrl = useCallback(() => {
@@ -94,9 +101,13 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       // If we already have the correct workspace loaded, don't make another API call
       if (
         workspaceId &&
-        currentWorkspace &&
-        currentWorkspace._id === workspaceId
+        currentWorkspaceRef.current &&
+        currentWorkspaceRef.current._id === workspaceId
       ) {
+        console.log(
+          "Skipping API call - workspace already loaded:",
+          workspaceId
+        );
         return;
       }
 
@@ -105,6 +116,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         setError(null);
         loadingWorkspaceRef.current = workspaceId || null;
 
+        console.log("Making get-me API call for workspace:", workspaceId);
         const response = await getMeRequest(workspaceId);
         const data: UserData = response.data;
 
@@ -141,7 +153,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         loadingWorkspaceRef.current = null;
       }
     },
-    [user, authLoading, persistWorkspaceId, currentWorkspace, router]
+    [user, authLoading, persistWorkspaceId, router]
   );
 
   // Refresh current workspace data
