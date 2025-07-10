@@ -145,7 +145,7 @@ export default function WorkspacePage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Reports Section */}
-          <Link href="/reports" className="block">
+          <Link href={`/workspaces/${workspaceId}/reports`} className="block">
             <div className="p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer">
               <h2 className="text-xl font-semibold mb-4">Reports</h2>
 
@@ -172,7 +172,7 @@ export default function WorkspacePage() {
           </Link>
 
           {/* Sources Section */}
-          <Link href="/sources" className="block">
+          <Link href={`/workspaces/${workspaceId}/sources`} className="block">
             <div className="p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer">
               <h2 className="text-xl font-semibold mb-4">Sources</h2>
 
@@ -199,7 +199,7 @@ export default function WorkspacePage() {
           </Link>
 
           {/* Chats Section */}
-          <Link href="/chats" className="block">
+          <Link href={`/workspaces/${workspaceId}/chats`} className="block">
             <div className="p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer">
               <h2 className="text-xl font-semibold mb-4">Chats</h2>
 
