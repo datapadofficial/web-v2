@@ -1,12 +1,9 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "@/providers/AuthProvider";
-import {
-  useMe,
-  useCurrentWorkspace,
-  useInitialResourceData,
-} from "@/features/workspaces/useWorkspaces";
+import { useWorkspaces } from "@/features/workspaces/useWorkspaces";
 import { useReports } from "@/features/reports/useReports";
 import { useSources } from "@/features/sources/useSources";
 import { useChats } from "@/features/chats/useChats";
@@ -18,18 +15,14 @@ export default function WorkspacePage() {
 
   // 🎯 Single source of truth - React Query manages everything
   const {
-    data: meData,
-    isLoading: meLoading,
-    error: meError,
-  } = useMe(workspaceId as string);
-
-  // Convenience hooks (these use the same query under the hood)
-  const currentWorkspace = useCurrentWorkspace(workspaceId as string);
-  const {
+    user: meData,
+    currentWorkspace,
     reports: initialReports,
     sources: initialSources,
     chats: initialChats,
-  } = useInitialResourceData(workspaceId as string);
+    isLoading: meLoading,
+    error: meError,
+  } = useWorkspaces(workspaceId as string);
 
   // React Query hooks for resources (using initial data from get-me)
   const {
@@ -130,7 +123,7 @@ export default function WorkspacePage() {
               <h1 className="text-3xl font-bold">{currentWorkspace.name}</h1>
               <p className="text-gray-600">Workspace ID: {workspaceId}</p>
               <p className="text-sm text-gray-500">
-                User: {meData?.user?.display_name || meData?.user?.email}
+                User: {meData?.display_name || meData?.email}
               </p>
             </div>
             <div className="flex gap-2">
@@ -152,70 +145,85 @@ export default function WorkspacePage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Reports Section */}
-          <div className="p-6 bg-white rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold mb-4">Reports</h2>
+          <Link href="/reports" className="block">
+            <div className="p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer">
+              <h2 className="text-xl font-semibold mb-4">Reports</h2>
 
-            {reportsLoading ? (
-              <div className="text-gray-500">Loading reports...</div>
-            ) : reportsError ? (
-              <div className="text-red-500">Error loading reports</div>
-            ) : (
-              <>
-                <p className="text-gray-600 mb-4">
-                  {reports.length} report{reports.length !== 1 ? "s" : ""}
-                </p>
-                <div className="text-sm text-gray-500">
-                  {reports.length > 0
-                    ? "Manage your reports in the reports section."
-                    : "No reports yet. Create your first report!"}
-                </div>
-              </>
-            )}
-          </div>
+              {reportsLoading ? (
+                <div className="text-gray-500">Loading reports...</div>
+              ) : reportsError ? (
+                <div className="text-red-500">Error loading reports</div>
+              ) : (
+                <>
+                  <p className="text-gray-600 mb-4">
+                    {reports.length} report{reports.length !== 1 ? "s" : ""}
+                  </p>
+                  <div className="text-sm text-gray-500 mb-4">
+                    {reports.length > 0
+                      ? "Manage your reports in the reports section."
+                      : "No reports yet. Create your first report!"}
+                  </div>
+                  <div className="text-blue-500 hover:text-blue-700 font-medium">
+                    Open Reports →
+                  </div>
+                </>
+              )}
+            </div>
+          </Link>
 
           {/* Sources Section */}
-          <div className="p-6 bg-white rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold mb-4">Sources</h2>
+          <Link href="/sources" className="block">
+            <div className="p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer">
+              <h2 className="text-xl font-semibold mb-4">Sources</h2>
 
-            {sourcesLoading ? (
-              <div className="text-gray-500">Loading sources...</div>
-            ) : sourcesError ? (
-              <div className="text-red-500">Error loading sources</div>
-            ) : (
-              <>
-                <p className="text-gray-600 mb-4">
-                  {sources.length} source{sources.length !== 1 ? "s" : ""}
-                </p>
-                <div className="text-sm text-gray-500">
-                  {sources.length > 0
-                    ? "Manage your sources in the sources section."
-                    : "No sources yet. Connect your first data source!"}
-                </div>
-              </>
-            )}
-          </div>
+              {sourcesLoading ? (
+                <div className="text-gray-500">Loading sources...</div>
+              ) : sourcesError ? (
+                <div className="text-red-500">Error loading sources</div>
+              ) : (
+                <>
+                  <p className="text-gray-600 mb-4">
+                    {sources.length} source{sources.length !== 1 ? "s" : ""}
+                  </p>
+                  <div className="text-sm text-gray-500 mb-4">
+                    {sources.length > 0
+                      ? "Manage your sources in the sources section."
+                      : "No sources yet. Connect your first data source!"}
+                  </div>
+                  <div className="text-blue-500 hover:text-blue-700 font-medium">
+                    Open Sources →
+                  </div>
+                </>
+              )}
+            </div>
+          </Link>
 
           {/* Chats Section */}
-          <div className="p-6 bg-white rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold mb-4">Chats</h2>
+          <Link href="/chats" className="block">
+            <div className="p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer">
+              <h2 className="text-xl font-semibold mb-4">Chats</h2>
 
-            {chatsLoading ? (
-              <div className="text-gray-500">Loading chats...</div>
-            ) : chatsError ? (
-              <div className="text-red-500">Error loading chats</div>
-            ) : (
-              <>
-                <p className="text-gray-600 mb-4">
-                  {chats.length} chat{chats.length !== 1 ? "s" : ""}
-                </p>
-                <div className="text-sm text-gray-500">
-                  {chats.length > 0
-                    ? "Manage your chats in the chats section."
-                    : "No chats yet. Start your first conversation!"}
-                </div>
-              </>
-            )}
-          </div>
+              {chatsLoading ? (
+                <div className="text-gray-500">Loading chats...</div>
+              ) : chatsError ? (
+                <div className="text-red-500">Error loading chats</div>
+              ) : (
+                <>
+                  <p className="text-gray-600 mb-4">
+                    {chats.length} chat{chats.length !== 1 ? "s" : ""}
+                  </p>
+                  <div className="text-sm text-gray-500 mb-4">
+                    {chats.length > 0
+                      ? "Manage your chats in the chats section."
+                      : "No chats yet. Start your first conversation!"}
+                  </div>
+                  <div className="text-blue-500 hover:text-blue-700 font-medium">
+                    Open Chats →
+                  </div>
+                </>
+              )}
+            </div>
+          </Link>
         </div>
       </div>
     </div>
