@@ -24,7 +24,7 @@ export const useSources = (workspaceId: string, initialData?: Source[]) => {
   return useQuery({
     queryKey: sourceKeys.list(workspaceId),
     queryFn: async () => {
-      const response = await listSourcesRequest();
+      const response = await listSourcesRequest(workspaceId);
       return response.data as Source[];
     },
     enabled: !!workspaceId,
@@ -33,25 +33,25 @@ export const useSources = (workspaceId: string, initialData?: Source[]) => {
   });
 };
 
-export const useSource = (sourceId: string) => {
+export const useSource = (sourceId: string, workspaceId: string) => {
   return useQuery({
     queryKey: sourceKeys.detail(sourceId),
     queryFn: async () => {
-      const response = await getSourceRequest({ _id: sourceId });
+      const response = await getSourceRequest(workspaceId, { _id: sourceId });
       return response.data as Source;
     },
-    enabled: !!sourceId,
+    enabled: !!sourceId && !!workspaceId,
     staleTime: 5 * 60 * 1000,
   });
 };
 
 // SIMPLE MUTATIONS - No optimistic updates for now
-export const useCreateSource = () => {
+export const useCreateSource = (workspaceId: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (data: Partial<Source>) => {
-      const response = await createSourceRequest(data);
+      const response = await createSourceRequest(workspaceId, data);
       return response.data as Source;
     },
     onSuccess: (newSource) => {
@@ -63,7 +63,7 @@ export const useCreateSource = () => {
   });
 };
 
-export const useUpdateSource = () => {
+export const useUpdateSource = (workspaceId: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -74,7 +74,10 @@ export const useUpdateSource = () => {
       sourceId: string;
       updates: Partial<Source>;
     }) => {
-      const response = await updateSourceRequest({ _id: sourceId, ...updates });
+      const response = await updateSourceRequest(workspaceId, {
+        _id: sourceId,
+        ...updates,
+      });
       return response.data as Source;
     },
     onSuccess: (updatedSource, { sourceId }) => {
@@ -86,12 +89,12 @@ export const useUpdateSource = () => {
   });
 };
 
-export const useDeleteSource = () => {
+export const useDeleteSource = (workspaceId: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (sourceId: string) => {
-      await deleteSourceRequest({ _id: sourceId });
+      await deleteSourceRequest(workspaceId, { _id: sourceId });
       return sourceId;
     },
     onSuccess: (sourceId) => {

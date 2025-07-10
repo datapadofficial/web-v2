@@ -1,5 +1,8 @@
 import { AxiosRequestConfig } from "axios";
-import { createAxiosRequest } from "@/lib/create-axios-request";
+import {
+  createAxiosRequest,
+  createGhentConfig,
+} from "@/lib/create-axios-request";
 
 const additionalConfig: AxiosRequestConfig = {
   baseURL: `${process.env.NEXT_PUBLIC_GHENT_BASE_URL}`,
@@ -7,35 +10,51 @@ const additionalConfig: AxiosRequestConfig = {
 };
 
 // Send a message to a chat
-export const sendMessageRequest = createAxiosRequest<unknown>({
-  endpoint: "/chats/send-message",
-  config: additionalConfig,
-});
+export const sendMessageRequest = (
+  workspaceId: string,
+  config?: AxiosRequestConfig
+) =>
+  createAxiosRequest<unknown>({
+    endpoint: "/chats/send-message",
+    config: {
+      ...createGhentConfig(workspaceId),
+      ...additionalConfig,
+      ...config,
+    },
+  });
 
 // List all chats
-export const listChatsRequest = (config?: AxiosRequestConfig) =>
+export const listChatsRequest = (
+  workspaceId: string,
+  config?: AxiosRequestConfig
+) =>
   createAxiosRequest<unknown>({
     method: "GET",
     endpoint: "/chats",
     config: {
-      baseURL: process.env.NEXT_PUBLIC_GHENT_BASE_URL,
+      ...createGhentConfig(workspaceId),
       ...config,
     },
   })();
 
 // Get a specific chat
-export const getChatRequest = (chatId: string, config?: AxiosRequestConfig) =>
+export const getChatRequest = (
+  workspaceId: string,
+  chatId: string,
+  config?: AxiosRequestConfig
+) =>
   createAxiosRequest<unknown>({
     method: "GET",
     endpoint: `/chats/${chatId}`,
     config: {
-      baseURL: process.env.NEXT_PUBLIC_GHENT_BASE_URL,
+      ...createGhentConfig(workspaceId),
       ...config,
     },
   })();
 
 // Delete a chat
 export const deleteChatRequest = (
+  workspaceId: string,
   chatId: string,
   config?: AxiosRequestConfig
 ) =>
@@ -43,7 +62,7 @@ export const deleteChatRequest = (
     method: "DELETE",
     endpoint: `/chats/${chatId}`,
     config: {
-      baseURL: process.env.NEXT_PUBLIC_GHENT_BASE_URL,
+      ...createGhentConfig(workspaceId),
       ...config,
     },
   })();

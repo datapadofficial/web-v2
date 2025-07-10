@@ -32,7 +32,6 @@ export function useAuth() {
   // Function to clear tokens on logout
   const clearTokens = () => {
     localStorage.removeItem("authToken");
-    localStorage.removeItem("workspaceId");
     deleteCookie("authToken");
   };
 

@@ -48,22 +48,9 @@ const initializeAxiosClient = () => {
           config.baseURL = process.env.NEXT_PUBLIC_GHENT_BASE_URL || "";
         }
 
-        // Add workspace ID header - either from config or localStorage
-        let workspaceId = null;
-
-        // First check if explicitly provided in config
+        // Add workspace ID header - only if explicitly provided in config
         if (extendedConfig._workspaceId) {
-          workspaceId = extendedConfig._workspaceId;
-        } else {
-          // Fall back to localStorage
-          workspaceId =
-            typeof window !== "undefined"
-              ? localStorage.getItem("workspaceId")
-              : null;
-        }
-
-        if (workspaceId && workspaceId !== "undefined") {
-          config.headers["x-workspace-id"] = workspaceId;
+          config.headers["x-workspace-id"] = extendedConfig._workspaceId;
         }
       } catch (error) {
         console.error("Error getting token or workspace ID:", error);
@@ -120,15 +107,9 @@ const setupGlobalAxios = () => {
           config.headers.Authorization = `Bearer ${token}`;
         }
 
-        // Handle workspace ID similarly to axiosClient
-        const workspaceId =
-          typeof window !== "undefined"
-            ? localStorage.getItem("workspaceId")
-            : null;
-
-        if (workspaceId && workspaceId !== "undefined") {
-          config.headers["x-workspace-id"] = workspaceId;
-        }
+        // Workspace ID should be explicitly provided in request config
+        // Global axios doesn't have access to workspace context
+        // Individual API calls should use the configured axiosClient with workspace ID
       } catch (error) {
         console.error("Error setting up global axios:", error);
       }

@@ -22,7 +22,7 @@ export const useChats = (workspaceId: string, initialData?: Chat[]) => {
   return useQuery({
     queryKey: chatKeys.list(workspaceId),
     queryFn: async () => {
-      const response = await listChatsRequest();
+      const response = await listChatsRequest(workspaceId);
       return response.data as Chat[];
     },
     enabled: !!workspaceId,
@@ -31,25 +31,25 @@ export const useChats = (workspaceId: string, initialData?: Chat[]) => {
   });
 };
 
-export const useChat = (chatId: string) => {
+export const useChat = (chatId: string, workspaceId: string) => {
   return useQuery({
     queryKey: chatKeys.detail(chatId),
     queryFn: async () => {
-      const response = await getChatRequest(chatId, {});
+      const response = await getChatRequest(workspaceId, chatId);
       return response.data as Chat;
     },
-    enabled: !!chatId,
+    enabled: !!chatId && !!workspaceId,
     staleTime: 5 * 60 * 1000,
   });
 };
 
-// SIMPLE MUTATIONS - Only delete is available for chats
-export const useDeleteChat = () => {
+// SIMPLE MUTATIONS - No optimistic updates for now
+export const useDeleteChat = (workspaceId: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (chatId: string) => {
-      await deleteChatRequest(chatId, {});
+      await deleteChatRequest(workspaceId, chatId);
       return chatId;
     },
     onSuccess: (chatId) => {
